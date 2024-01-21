@@ -37,8 +37,7 @@
     var CLIENT_ID = '79559339065-l40e6c96mdko5tnpb9cdka0b08ncgsdl.apps.googleusercontent.com';
     var REDIRECT_URI = 'https://gentlecat.github.io/youtube-playlist-bulk';
 
-    document.addEventListener("DOMContentLoaded", (event) => {
-
+    function init() {
         var fragmentString = location.hash.substring(1);
 
         // Parse query string to see if page request is coming from OAuth 2.0 server.
@@ -47,20 +46,21 @@
         while (m = regex.exec(fragmentString)) {
             params[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
         }
+
         if (Object.keys(params).length > 0) {
             localStorage.setItem('oauth2-params', JSON.stringify(params));
             if (params['access_token'] && params['access_token'].length > 0) {
                 // Show the form
                 const form = document.getElementById("add-form");
                 form.hidden = false;
-            } else {
-                // Need to sign in
-                const btn = document.getElementById("signin-btn");
-                btn.hidden = false;
+                return;
             }
         }
 
-    });
+        // Need to sign in
+        const btn = document.getElementById("signin-btn");
+        btn.hidden = false;
+    }
 
     function updatePlaylist() {
         const playlistID = document.getElementById("playlist-id").value;
@@ -127,6 +127,10 @@
         document.body.appendChild(form);
         form.submit();
     }
+
+    document.addEventListener("DOMContentLoaded", (event) => {
+        init();
+    });
 </script>
 
 </body>
