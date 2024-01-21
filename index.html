@@ -1,48 +1,95 @@
 <html>
+
 <head>
     <title>YouTube playlist bulk video adder</title>
 </head>
 
 <body>
 
+<h1>YouTube playlist bulk video adder</h1>
+
+<div id="signin-btn" hidden>
+    <button onclick="oauth2SignIn();">Sign in</button>
+</div>
+
+<form id="add-form" onsubmit="return false;" hidden>
+
+    <div>
+        <label for="playlist-id">Playlist ID:</label>
+        <br/>
+        <input type="text" id="playlist-id" name="playlist-id" required/>
+    </div>
+
+    <div>
+        <label for="urls">Videos:</label>
+        <br/>
+        <textarea id="urls" name="urls" rows="5" cols="33" required placeholder="One URL per row">
+    </textarea>
+    </div>
+
+    <div>
+        <button onclick="updatePlaylist();">Add</button>
+    </div>
+
+</form>
+
 <script>
-    var YOUR_CLIENT_ID = '79559339065-l40e6c96mdko5tnpb9cdka0b08ncgsdl.apps.googleusercontent.com';
-    var YOUR_REDIRECT_URI = 'https://gentlecat.github.io/youtube-playlist-bulk';
-    var fragmentString = location.hash.substring(1);
+    var CLIENT_ID = '79559339065-l40e6c96mdko5tnpb9cdka0b08ncgsdl.apps.googleusercontent.com';
+    var REDIRECT_URI = 'https://gentlecat.github.io/youtube-playlist-bulk';
 
-    // Parse query string to see if page request is coming from OAuth 2.0 server.
-    var params = {};
-    var regex = /([^&=]+)=([^&]*)/g, m;
-    while (m = regex.exec(fragmentString)) {
-        params[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
-    }
-    if (Object.keys(params).length > 0) {
-        localStorage.setItem('oauth2-test-params', JSON.stringify(params));
-        if (params['state'] && params['state'] == 'try_sample_request') {
-            trySampleRequest();
+    document.addEventListener("DOMContentLoaded", (event) => {
+
+        var fragmentString = location.hash.substring(1);
+
+        // Parse query string to see if page request is coming from OAuth 2.0 server.
+        var params = {};
+        var regex = /([^&=]+)=([^&]*)/g, m;
+        while (m = regex.exec(fragmentString)) {
+            params[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
         }
-    }
+        if (Object.keys(params).length > 0) {
+            localStorage.setItem('oauth2-params', JSON.stringify(params));
+            if (params['access_token'] && params['access_token'].length > 0) {
+                // Show the form
+                const form = document.getElementById("add-form");
+                form.hidden = false;
+            } else {
+                // Need to sign in
+                const btn = document.getElementById("signin-btn");
+                btn.hidden = false;
+            }
+        }
 
-    // If there's an access token, try an API request.
-    // Otherwise, start OAuth 2.0 flow.
-    function trySampleRequest() {
-        var params = JSON.parse(localStorage.getItem('oauth2-test-params'));
+    });
+
+    function updatePlaylist() {
+        const playlistID = document.getElementById("playlist-id").value;
+
+        var params = JSON.parse(localStorage.getItem('oauth2-params'));
         if (params && params['access_token']) {
             var xhr = new XMLHttpRequest();
-            xhr.open('GET',
-                'https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true&' +
+            xhr.open('POST',
+                'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&' +
                 'access_token=' + params['access_token']);
             xhr.onreadystatechange = function (e) {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     console.log(xhr.response);
                 } else if (xhr.readyState === 4 && xhr.status === 401) {
-                    // Token invalid, so prompt for user permission.
-                    oauth2SignIn();
+                    alert("Invalid auth token. Save your input and sign in.")
                 }
             };
-            xhr.send(null);
+            xhr.send(JSON.stringify({
+                "snippet": {
+                    "playlistId": playlistID,
+                    "position": 0,
+                    "resourceId": {
+                        "kind": "youtube#video",
+                        "videoId": "dQw4w9WgXcQ"
+                    }
+                }
+            }));
         } else {
-            oauth2SignIn();
+            alert("Save your input and sign in.")
         }
     }
 
@@ -60,10 +107,10 @@
 
         // Parameters to pass to OAuth 2.0 endpoint.
         var params = {
-            'client_id': YOUR_CLIENT_ID,
-            'redirect_uri': YOUR_REDIRECT_URI,
+            'client_id': CLIENT_ID,
+            'redirect_uri': REDIRECT_URI,
             'scope': 'https://www.googleapis.com/auth/youtube.force-ssl',
-            'state': 'try_sample_request',
+            'state': 'init',
             'include_granted_scopes': 'true',
             'response_type': 'token'
         };
@@ -82,8 +129,6 @@
         form.submit();
     }
 </script>
-
-<button onclick="trySampleRequest();">Try sample request</button>
 
 </body>
 
