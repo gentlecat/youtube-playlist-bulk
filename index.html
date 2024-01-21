@@ -21,10 +21,9 @@
     </div>
 
     <div>
-        <label for="urls">Videos:</label>
+        <label for="video-ids">Video IDs:</label>
         <br/>
-        <textarea id="urls" name="urls" rows="5" cols="33" required placeholder="One URL per row">
-    </textarea>
+        <textarea id="video-ids" name="video-ids" rows="5" cols="33" required placeholder="One ID per row"></textarea>
     </div>
 
     <div>
@@ -34,15 +33,16 @@
 </form>
 
 <script>
-    var CLIENT_ID = '79559339065-l40e6c96mdko5tnpb9cdka0b08ncgsdl.apps.googleusercontent.com';
-    var REDIRECT_URI = 'https://gentlecat.github.io/youtube-playlist-bulk';
+    const CLIENT_ID = '79559339065-l40e6c96mdko5tnpb9cdka0b08ncgsdl.apps.googleusercontent.com';
+    const REDIRECT_URI = 'https://gentlecat.github.io/youtube-playlist-bulk';
 
     function init() {
-        var fragmentString = location.hash.substring(1);
+        const fragmentString = location.hash.substring(1);
 
         // Parse query string to see if page request is coming from OAuth 2.0 server.
-        var params = {};
-        var regex = /([^&=]+)=([^&]*)/g, m;
+        const params = {};
+        const regex = /([^&=]+)=([^&]*)/g;
+        let m;
         while (m = regex.exec(fragmentString)) {
             params[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
         }
@@ -63,11 +63,22 @@
     }
 
     function updatePlaylist() {
-        const playlistID = document.getElementById("playlist-id").value;
+        const playlistId = document.getElementById("playlist-id").value;
+        const videoIds = document.getElementById("video-ids").value.split('\n');
 
-        var params = JSON.parse(localStorage.getItem('oauth2-params'));
+        for (const videoId in videoIds) {
+            if (addVideoToPlaylist(playlistId, videoId) === false) {
+                return;
+            }
+        }
+    }
+
+    function addVideoToPlaylist(playlistId, videoId) {
+        console.log(`Adding video ${videoId} to playlist ${playlistId}`)
+
+        const params = JSON.parse(localStorage.getItem('oauth2-params'));
         if (params && params['access_token']) {
-            var xhr = new XMLHttpRequest();
+            const xhr = new XMLHttpRequest();
             xhr.open('POST',
                 'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&' +
                 'access_token=' + params['access_token']);
@@ -80,15 +91,16 @@
             };
             xhr.send(JSON.stringify({
                 "snippet": {
-                    "playlistId": playlistID,
+                    "playlistId": playlistId,
                     "resourceId": {
                         "kind": "youtube#video",
-                        "videoId": "dQw4w9WgXcQ"
+                        "videoId": videoId
                     }
                 }
             }));
         } else {
-            alert("Save your input and sign in.")
+            alert("Save your input and sign in.");
+            return false;
         }
     }
 
@@ -97,15 +109,15 @@
      */
     function oauth2SignIn() {
         // Google's OAuth 2.0 endpoint for requesting an access token
-        var oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
+        const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
 
         // Create element to open OAuth 2.0 endpoint in new window.
-        var form = document.createElement('form');
+        const form = document.createElement('form');
         form.setAttribute('method', 'GET'); // Send as a GET request.
         form.setAttribute('action', oauth2Endpoint);
 
         // Parameters to pass to OAuth 2.0 endpoint.
-        var params = {
+        const params = {
             'client_id': CLIENT_ID,
             'redirect_uri': REDIRECT_URI,
             'scope': 'https://www.googleapis.com/auth/youtube.force-ssl',
@@ -115,8 +127,8 @@
         };
 
         // Add form parameters as hidden input values.
-        for (var p in params) {
-            var input = document.createElement('input');
+        for (let p in params) {
+            const input = document.createElement('input');
             input.setAttribute('type', 'hidden');
             input.setAttribute('name', p);
             input.setAttribute('value', params[p]);
