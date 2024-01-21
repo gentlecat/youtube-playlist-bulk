@@ -1,7 +1,13 @@
-<html><head></head><body>
+<html>
+<head>
+    <title>YouTube playlist bulk video adder</title>
+</head>
+
+<body>
+
 <script>
-    var YOUR_CLIENT_ID = 'REPLACE_THIS_VALUE';
-    var YOUR_REDIRECT_URI = 'REPLACE_THIS_VALUE';
+    var YOUR_CLIENT_ID = '79559339065-l40e6c96mdko5tnpb9cdka0b08ncgsdl.apps.googleusercontent.com';
+    var YOUR_REDIRECT_URI = 'https://gentlecat.github.io/youtube-playlist-bulk';
     var fragmentString = location.hash.substring(1);
 
     // Parse query string to see if page request is coming from OAuth 2.0 server.
@@ -11,7 +17,7 @@
         params[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
     }
     if (Object.keys(params).length > 0) {
-        localStorage.setItem('oauth2-test-params', JSON.stringify(params) );
+        localStorage.setItem('oauth2-test-params', JSON.stringify(params));
         if (params['state'] && params['state'] == 'try_sample_request') {
             trySampleRequest();
         }
@@ -53,12 +59,14 @@
         form.setAttribute('action', oauth2Endpoint);
 
         // Parameters to pass to OAuth 2.0 endpoint.
-        var params = {'client_id': YOUR_CLIENT_ID,
+        var params = {
+            'client_id': YOUR_CLIENT_ID,
             'redirect_uri': YOUR_REDIRECT_URI,
             'scope': 'https://www.googleapis.com/auth/youtube.force-ssl',
             'state': 'try_sample_request',
             'include_granted_scopes': 'true',
-            'response_type': 'token'};
+            'response_type': 'token'
+        };
 
         // Add form parameters as hidden input values.
         for (var p in params) {
@@ -76,4 +84,7 @@
 </script>
 
 <button onclick="trySampleRequest();">Try sample request</button>
-</body></html>
+
+</body>
+
+</html>
