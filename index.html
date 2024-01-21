@@ -79,9 +79,13 @@
         const params = JSON.parse(localStorage.getItem('oauth2-params'));
         if (params && params['access_token']) {
             const xhr = new XMLHttpRequest();
-            xhr.open('POST',
+            xhr.open(
+                'POST',
                 'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&' +
-                'access_token=' + params['access_token']);
+                'access_token=' + params['access_token'],
+                false
+            )
+            ;
             xhr.onreadystatechange = function (e) {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     console.log(xhr.response);
