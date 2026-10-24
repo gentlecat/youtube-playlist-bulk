@@ -1,0 +1,8 @@
+{
+  "extends": ["html-validate:recommended"],
+  "rules": {
+    "void-style": "off",
+    "element-required-attributes": "warn",
+    "no-implicit-button-type": "warn"
+  }
+}
