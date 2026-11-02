@@ -19,7 +19,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
 
       # Rules the existing pages trip are relaxed in .htmlvalidate.json:
       # style-only rules are off, accessibility gaps are warnings.
