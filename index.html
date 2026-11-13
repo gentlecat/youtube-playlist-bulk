@@ -1,124 +1,282 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
-    <title>YouTube playlist bulk video adder</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>YouTube playlist bulk adder</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="preload" href="fonts/charter_regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/spline-sans-mono-regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<h1>YouTube playlist bulk video adder</h1>
+<header class="site-header">
+    <h1>YouTube playlist bulk adder</h1>
+</header>
 
-<div id="signin-btn" hidden>
-    <button onclick="oauth2SignIn();">Sign in</button>
-</div>
+<main class="main-container">
 
-<form id="add-form" onsubmit="return false;" hidden>
+    <p class="intro">Add a list of videos to one of your YouTube playlists in one go.</p>
 
-    <div>
-        <label for="playlist-id">Playlist ID:</label>
-        <br/>
-        <input type="text" id="playlist-id" name="playlist-id" required/>
+    <div id="signin" hidden>
+        <p>Sign in with the Google account that owns the playlist.</p>
+        <button type="button" id="signin-button">Sign in with Google</button>
     </div>
 
-    <div>
-        <label for="video-ids">Video IDs:</label>
-        <br/>
-        <textarea id="video-ids" name="video-ids" rows="5" cols="33" required placeholder="One ID per row"></textarea>
-    </div>
+    <form id="add-form" hidden>
 
-    <div>
-        <button onclick="updatePlaylist();">Add</button>
-    </div>
+        <div class="field">
+            <label for="playlist">Playlist</label>
+            <p class="hint" id="playlist-hint">A playlist link, or its ID.</p>
+            <input type="text" id="playlist" name="playlist" required autocomplete="off" spellcheck="false"
+                   aria-describedby="playlist-hint"
+                   placeholder="https://www.youtube.com/playlist?list=">
+        </div>
 
-</form>
+        <div class="field">
+            <label for="videos">Videos</label>
+            <p class="hint" id="videos-hint">One video link or ID per line. They are added in this order.</p>
+            <textarea id="videos" name="videos" rows="8" required spellcheck="false"
+                      aria-describedby="videos-hint"></textarea>
+        </div>
+
+        <div class="actions">
+            <button type="submit" id="add-button">Add videos</button>
+            <span class="progress" id="progress" role="status"></span>
+        </div>
+
+    </form>
+
+    <p class="notice" id="notice" role="alert" hidden></p>
+
+    <section id="results-section" hidden>
+        <h2 class="section-title">Results</h2>
+        <ul class="results" id="results"></ul>
+    </section>
+
+</main>
 
 <script>
     const CLIENT_ID = '79559339065-l40e6c96mdko5tnpb9cdka0b08ncgsdl.apps.googleusercontent.com';
     const REDIRECT_URI = 'https://gentlecat.github.io/youtube-playlist-bulk';
 
+    const TOKEN_KEY = 'oauth2-params';
+    const PENDING_INPUT_KEY = 'pending-input';
+
+    const signin = document.getElementById('signin');
+    const form = document.getElementById('add-form');
+    const addButton = document.getElementById('add-button');
+    const progress = document.getElementById('progress');
+    const notice = document.getElementById('notice');
+    const resultsSection = document.getElementById('results-section');
+    const results = document.getElementById('results');
+
+    function showNotice(text) {
+        notice.textContent = text;
+        notice.hidden = !text;
+    }
+
+    function readToken() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(TOKEN_KEY));
+            // Keep a minute in hand, so a token doesn't expire halfway through a run.
+            if (saved && saved.access_token && saved.expires_at > Date.now() + 60000) {
+                return saved.access_token;
+            }
+        } catch {
+            // Treat unreadable storage as signed out.
+        }
+        return null;
+    }
+
     function init() {
-        const fragmentString = location.hash.substring(1);
-
-        // Parse query string to see if page request is coming from OAuth 2.0 server.
-        const params = {};
-        const regex = /([^&=]+)=([^&]*)/g;
-        let m;
-        while (m = regex.exec(fragmentString)) {
-            params[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
-        }
-
-        if (Object.keys(params).length > 0) {
-            localStorage.setItem('oauth2-params', JSON.stringify(params));
-            if (params['access_token'] && params['access_token'].length > 0) {
-                // Show the form
-                const form = document.getElementById("add-form");
-                form.hidden = false;
-                return;
-            }
-        }
-
-        // Need to sign in
-        const btn = document.getElementById("signin-btn");
-        btn.hidden = false;
-    }
-
-    function updatePlaylist() {
-        const playlistId = document.getElementById("playlist-id").value;
-        const videoIds = document.getElementById("video-ids").value.split('\n');
-
-        for (const videoId of videoIds) {
-            if (addVideoToPlaylist(playlistId, videoId) === false) {
-                return;
-            }
-        }
-    }
-
-    function addVideoToPlaylist(playlistId, videoId) {
-        console.log(`Adding video ${videoId} to playlist ${playlistId}`)
-
-        const params = JSON.parse(localStorage.getItem('oauth2-params'));
-        if (params && params['access_token']) {
-            const xhr = new XMLHttpRequest();
-            xhr.open(
-                'POST',
-                'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&' +
-                'access_token=' + params['access_token'],
-                false
-            )
-            ;
-            xhr.onreadystatechange = function (e) {
-                if (xhr.readyState === 4 && xhr.status === 200) {
-                    console.log(xhr.response);
-                } else if (xhr.readyState === 4 && xhr.status === 401) {
-                    alert("Invalid auth token. Save your input and sign in.")
-                }
-            };
-            xhr.send(JSON.stringify({
-                "snippet": {
-                    "playlistId": playlistId,
-                    "resourceId": {
-                        "kind": "youtube#video",
-                        "videoId": videoId
-                    }
-                }
+        // Google sends the token back in the address fragment after sign-in.
+        const params = new URLSearchParams(location.hash.substring(1));
+        if (params.get('access_token')) {
+            const expiresIn = Number(params.get('expires_in')) || 3600;
+            localStorage.setItem(TOKEN_KEY, JSON.stringify({
+                access_token: params.get('access_token'),
+                expires_at: Date.now() + expiresIn * 1000,
             }));
-        } else {
-            alert("Save your input and sign in.");
-            return false;
+        } else if (params.get('error')) {
+            showNotice('Sign-in did not finish. Try again.');
         }
+        if (location.hash) {
+            // Don't leave the token in the address bar or the browser history.
+            history.replaceState(null, '', location.pathname + location.search);
+        }
+
+        // Bring back what was typed before signing in.
+        const pending = JSON.parse(sessionStorage.getItem(PENDING_INPUT_KEY) || 'null');
+        if (pending) {
+            form.elements.playlist.value = pending.playlist;
+            form.elements.videos.value = pending.videos;
+            sessionStorage.removeItem(PENDING_INPUT_KEY);
+        }
+
+        const signedIn = Boolean(readToken());
+        form.hidden = !signedIn;
+        signin.hidden = signedIn;
+    }
+
+    // Accepts a playlist link or a bare playlist ID.
+    function parsePlaylistId(text) {
+        text = text.trim();
+        try {
+            return new URL(text).searchParams.get('list') || '';
+        } catch {
+            return text;
+        }
+    }
+
+    // Accepts watch, youtu.be, shorts and embed links, or a bare video ID.
+    function parseVideoId(text) {
+        try {
+            const url = new URL(text);
+            if (url.hostname === 'youtu.be') {
+                return url.pathname.split('/')[1] || '';
+            }
+            if (url.searchParams.get('v')) {
+                return url.searchParams.get('v');
+            }
+            const match = url.pathname.match(/^\/(?:shorts|embed|live)\/([^/]+)/);
+            return match ? match[1] : '';
+        } catch {
+            return text;
+        }
+    }
+
+    async function addVideoToPlaylist(token, playlistId, videoId) {
+        let response;
+        try {
+            response = await fetch('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    snippet: {
+                        playlistId: playlistId,
+                        resourceId: {kind: 'youtube#video', videoId: videoId},
+                    },
+                }),
+            });
+        } catch {
+            return {ok: false, message: 'Could not reach YouTube. Check the connection.'};
+        }
+        if (response.ok) {
+            return {ok: true};
+        }
+        if (response.status === 401) {
+            return {ok: false, signedOut: true};
+        }
+        let message = `YouTube answered with status ${response.status}.`;
+        try {
+            message = (await response.json()).error?.message || message;
+        } catch {
+            // Keep the status message.
+        }
+        return {ok: false, message};
+    }
+
+    function addResult(line, ok, detail) {
+        const item = document.createElement('li');
+        const status = document.createElement('span');
+        status.className = ok ? 'status status-ok' : 'status status-failed';
+        status.textContent = ok ? 'Added' : 'Failed';
+        const id = document.createElement('span');
+        id.className = 'video-id';
+        id.textContent = line;
+        item.append(status, id);
+        if (detail) {
+            const text = document.createElement('span');
+            text.className = 'result-detail';
+            text.textContent = detail;
+            item.append(text);
+        }
+        results.append(item);
+    }
+
+    async function addVideos(event) {
+        event.preventDefault();
+        showNotice('');
+
+        const playlistId = parsePlaylistId(form.elements.playlist.value);
+        if (!playlistId) {
+            showNotice('That link has no playlist in it. Copy the link from the playlist page.');
+            return;
+        }
+        const lines = form.elements.videos.value.split('\n').map(line => line.trim()).filter(Boolean);
+        if (lines.length === 0) {
+            showNotice('Add at least one video link or ID.');
+            return;
+        }
+
+        addButton.disabled = true;
+        results.replaceChildren();
+        resultsSection.hidden = false;
+        const notAdded = [];
+        let added = 0;
+
+        for (const [index, line] of lines.entries()) {
+            progress.textContent = `Adding ${index + 1} of ${lines.length}`;
+            const token = readToken();
+            if (!token) {
+                notAdded.push(...lines.slice(index));
+                showNotice('Your sign-in has expired. Sign in again to add the rest; the remaining videos are still in the box.');
+                signin.hidden = false;
+                break;
+            }
+            const videoId = parseVideoId(line);
+            if (!videoId) {
+                addResult(line, false, 'Not a video link.');
+                notAdded.push(line);
+                continue;
+            }
+            const result = await addVideoToPlaylist(token, playlistId, videoId);
+            if (result.signedOut) {
+                localStorage.removeItem(TOKEN_KEY);
+                notAdded.push(...lines.slice(index));
+                showNotice('YouTube signed you out. Sign in again to add the rest; the remaining videos are still in the box.');
+                signin.hidden = false;
+                break;
+            }
+            addResult(videoId, result.ok, result.message);
+            if (result.ok) {
+                added++;
+            } else {
+                notAdded.push(line);
+            }
+        }
+
+        // Leave only what still needs adding, so a retry doesn't add videos twice.
+        form.elements.videos.value = notAdded.join('\n');
+        const failed = lines.length - added;
+        progress.textContent = `Added ${added} of ${lines.length}.` + (failed ? ` ${failed} not added.` : '');
+        addButton.disabled = false;
     }
 
     /*
      * Create form to request access token from Google's OAuth 2.0 server.
      */
     function oauth2SignIn() {
+        // Keep what was typed, since signing in leaves the page.
+        sessionStorage.setItem(PENDING_INPUT_KEY, JSON.stringify({
+            playlist: form.elements.playlist.value,
+            videos: form.elements.videos.value,
+        }));
+
         // Google's OAuth 2.0 endpoint for requesting an access token
         const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
 
         // Create element to open OAuth 2.0 endpoint in new window.
-        const form = document.createElement('form');
-        form.setAttribute('method', 'GET'); // Send as a GET request.
-        form.setAttribute('action', oauth2Endpoint);
+        const signInForm = document.createElement('form');
+        signInForm.setAttribute('method', 'GET'); // Send as a GET request.
+        signInForm.setAttribute('action', oauth2Endpoint);
 
         // Parameters to pass to OAuth 2.0 endpoint.
         const params = {
@@ -136,17 +294,17 @@
             input.setAttribute('type', 'hidden');
             input.setAttribute('name', p);
             input.setAttribute('value', params[p]);
-            form.appendChild(input);
+            signInForm.appendChild(input);
         }
 
         // Add form to page and submit it to open the OAuth 2.0 endpoint.
-        document.body.appendChild(form);
-        form.submit();
+        document.body.appendChild(signInForm);
+        signInForm.submit();
     }
 
-    document.addEventListener("DOMContentLoaded", (event) => {
-        init();
-    });
+    document.getElementById('signin-button').addEventListener('click', oauth2SignIn);
+    form.addEventListener('submit', addVideos);
+    document.addEventListener('DOMContentLoaded', init);
 </script>
 
 </body>
